@@ -1,0 +1,368 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Mars Mission: Ares — 3D English Adventure (A1+)</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@500;700;900&family=Rajdhani:wght@500;600;700&display=swap" rel="stylesheet">
+  <script type="module" crossorigin src="./assets/index-BYJGdP8b.js"></script>
+  <link rel="stylesheet" crossorigin href="./assets/index-DmuoDzTa.css">
+</head>
+<body>
+  <!-- 3D Three.js Canvas Container -->
+  <div id="canvas-container"></div>
+
+  <!-- In-game Center Crosshair -->
+  <div id="crosshair"></div>
+
+  <!-- Dynamic 3D Waypoint Indicator to Central O2 Generator -->
+  <!-- Screen Flash for Defeat Explosion -->
+  <div id="explosion-flash-overlay" class="explosion-flash-overlay hidden"></div>
+
+  <!-- Dynamic Waypoint Indicator to Central Reactor -->
+  <div id="waypoint-indicator" class="waypoint-indicator hidden">
+    <span class="waypoint-pulse">⚡</span>
+    <span class="waypoint-title">O2 RECHARGE</span>
+    <span class="waypoint-dist">--m</span>
+  </div>
+
+  <!-- Radio Transmission Card (Houston Mission Control) -->
+  <div id="radio-transmission-box" class="radio-transmission-box hidden">
+    <button id="btn-close-radio" class="panel-close-btn" title="Close transmission (C — cursor toggle)">✕</button>
+    <div class="radio-header">
+      <span class="radio-pulse-icon">📡</span>
+      <span id="radio-speaker-name" class="radio-speaker">Flight Director Sarah (Houston)</span>
+    </div>
+    <div id="radio-subtitle-text" class="radio-body">"Houston to Ares-1: We have telemetry lock..."</div>
+    <div id="radio-grammar-tip" class="radio-tip">TOEFL Tip: Distinguish empirical evidence from theoretical hypothesis.</div>
+  </div>
+
+  <!-- HUD Overlay -->
+  <div id="hud-overlay">
+    <!-- Top Header Bar -->
+    <header id="top-bar">
+      <div class="hud-left">
+        <div class="mission-tag">ARES-BASE // MARS EXPEDITION</div>
+        <div class="hud-tags-row">
+          <div class="teacher-active-tag hidden" id="teacher-active-indicator">👨‍🏫 TEACHER MODE ACTIVE</div>
+          <div id="easter-egg-counter" class="easter-egg-tag">🔤 SpeaX Letters: <b>0/5</b></div>
+        </div>
+      </div>
+
+      <!-- Oxygen Supply Timer & Compact Reactor Warning -->
+      <div class="header-center-cluster">
+        <div id="oxygen-meter-box">
+          <div class="o2-icon-wrap">
+            <span class="o2-symbol">O₂</span>
+          </div>
+          <div class="o2-info">
+            <div class="o2-header">
+              <span class="o2-label">OXYGEN RESERVES</span>
+              <span id="oxygen-paused-badge" class="badge-paused" style="display:none;">PAUSED</span>
+              <span id="oxygen-time" class="o2-digits">45:00</span>
+            </div>
+            <div class="o2-bar-track">
+              <div id="oxygen-bar-fill" class="o2-bar-fill"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Sleek Compact Reactor Warning Pill (Never overlaps) -->
+        <div id="reactor-warning-banner" class="reactor-warning-compact hidden">
+          <span class="warn-pulse">🚨</span>
+          <span class="warn-label">REACTOR:</span>
+          <span id="reactor-countdown-digits" class="countdown-tag">60s</span>
+          <button id="btn-close-overheat" class="panel-close-btn-xs" title="Close">✕</button>
+        </div>
+      </div>
+
+      <!-- Top Right Controls -->
+      <div class="hud-right">
+        <button id="btn-fullscreen" class="hud-btn" title="Toggle Fullscreen (F)">⛶ Fullscreen</button>
+        <button id="btn-cursor-toggle" class="hud-btn" title="Toggle Mouse Cursor (C)">🖱️ Cursor (C)</button>
+        <button id="btn-hud-toggle" class="hud-btn" title="Toggle Clean Screen (H)">👁️ Clean HUD (H)</button>
+        <button id="btn-mute" class="hud-btn" title="Toggle Sound">🔊 Audio: ON</button>
+        <button id="btn-teacher" class="hud-btn hud-btn-teacher" title="Teacher Mode">👨‍🏫 Teacher Mode</button>
+      </div>
+    </header>
+
+    <!-- Radar / Minimap (Top Left) -->
+    <div id="radar-container">
+      <div class="radar-header">SURFACE RADAR</div>
+      <canvas id="radar-canvas" width="130" height="130"></canvas>
+      <div class="radar-legend">
+        <span>● Pending</span>
+        <span class="legend-green">● Clear</span>
+      </div>
+    </div>
+
+    <!-- Controls Helper Hint (Starts minimized as tiny button) -->
+    <button id="btn-show-controls" class="btn-show-controls" title="Show Keyboard Controls">
+      ⌨️ Controls
+    </button>
+    <div id="controls-hint" class="hidden">
+      <div class="controls-hint-header">
+        <span class="ch-title">🎮 CONTROLS</span>
+        <button id="btn-close-controls" class="panel-close-btn-sm" title="Hide Controls">✕</button>
+      </div>
+      <div class="hint-row"><span>WASD</span> Move (W=Fwd, S=Back, A=Left, D=Right)</div>
+      <div class="hint-row"><span>C</span> <b>Free Cursor / Aim Lock</b></div>
+      <div class="hint-row"><span>H</span> <b>Clean Screen Mode</b></div>
+      <div class="hint-row"><span>F</span> <b>Fullscreen Mode</b></div>
+      <div class="hint-row"><span>Mouse</span> Look / Look UP at Earth</div>
+      <div class="hint-row"><span>V</span> 1st / 3rd Person View</div>
+      <div class="hint-row"><span>Space</span> Low-G Float Jump</div>
+      <div class="hint-row"><span>Shift</span> Sprint | <span>E</span> Interact</div>
+    </div>
+
+    <!-- Center Interaction Prompt -->
+    <div id="interaction-prompt" class="interaction-prompt hidden">
+      <span class="key-badge">E</span> Press E to Interact
+    </div>
+
+    <!-- Bottom Inventory Bar -->
+    <footer id="bottom-bar">
+      <div class="inv-title">ROCKET ASSEMBLY COMPONENTS</div>
+      <div id="inventory-slots" class="inventory-slots"></div>
+    </footer>
+  </div>
+
+  <!-- Quest Interaction Modal -->
+  <div id="quest-modal" class="modal-backdrop hidden">
+    <div class="modal-card quest-card-window">
+      <div class="modal-header">
+        <div class="header-titles">
+          <h2 id="quest-modal-title">Station Title</h2>
+          <span id="quest-modal-subtitle" class="station-sub">Station Subtitle</span>
+        </div>
+        <button id="btn-close-modal" class="btn-close" title="Close Window">&times;</button>
+      </div>
+      <div id="quest-modal-body" class="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Coolant Distractor Modal -->
+  <div id="coolant-modal" class="modal-backdrop hidden">
+    <div class="modal-card coolant-window">
+      <div class="modal-header">
+        <h2>⚙️ Central Life-Support Oxygen Generator</h2>
+        <button id="btn-close-coolant" class="btn-close">&times;</button>
+      </div>
+      <div id="coolant-modal-body" class="modal-body"></div>
+    </div>
+  </div>
+
+  <!-- Teacher Mode Modal (PIN 1511) -->
+  <div id="teacher-modal" class="modal-backdrop hidden">
+    <div class="modal-card teacher-window">
+      <div class="modal-header">
+        <h2>👨‍🏫 Teacher Administration</h2>
+        <button id="btn-close-teacher" class="btn-close">&times;</button>
+      </div>
+      <div class="modal-body">
+        <div id="teacher-pin-view" class="teacher-pin-box">
+          <p>Please enter the Teacher Mode security PIN:</p>
+          <div class="pin-row">
+            <input type="password" id="teacher-pin-input" maxlength="4" placeholder="••••" />
+            <button id="btn-teacher-unlock" class="btn btn-primary">Unlock</button>
+          </div>
+          <p class="pin-hint">Enter teacher authorization PIN</p>
+          <div id="teacher-pin-error" class="error-msg hidden"></div>
+        </div>
+
+        <div id="teacher-panel-view" class="hidden"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mission Failed Modal (Oxygen Depleted or Reactor Meltdown) -->
+  <div id="game-over-modal" class="modal-backdrop hidden">
+    <div class="modal-card game-over-window">
+      <div class="danger-icon">💥</div>
+      <h2 id="game-over-title" class="danger-title">GAME OVER</h2>
+      <h3 id="game-over-subtitle" class="danger-subtitle">MISSION LIFE SUPPORT COMPROMISED</h3>
+      
+      <!-- Houston Transmission Card -->
+      <div class="game-over-houston-card">
+        <div class="houston-badge">📡 INCOMING PRIORITY TRANSMISSION // HOUSTON FLIGHT CONTROL</div>
+        <p id="game-over-houston-msg" class="houston-msg">
+          "Ares-1, telemetry confirms life-support reserves have depleted. Base evacuation compromised. Stand by for mission debriefing."
+        </p>
+      </div>
+
+      <!-- Student Results Card -->
+      <div class="mission-results-card">
+        <h4 class="results-title">📋 CADET MISSION RESULTS</h4>
+        <div class="results-stats-row">
+          <div class="res-stat-item">
+            <span class="rsi-icon">⏱️</span>
+            <span class="rsi-label">TIME SURVIVED</span>
+            <span class="rsi-value" id="go-time-survived">--:--</span>
+          </div>
+          <div class="res-stat-item">
+            <span class="rsi-icon">🛰️</span>
+            <span class="rsi-label">STATIONS COMPLETED</span>
+            <span class="rsi-value" id="go-stations-count">0 / 6</span>
+          </div>
+          <div class="res-stat-item">
+            <span class="rsi-icon">🔤</span>
+            <span class="rsi-label">SPEAX LETTERS</span>
+            <span class="rsi-value" id="go-letters-count">0 / 5</span>
+          </div>
+        </div>
+
+        <div class="results-breakdown">
+          <div class="breakdown-col">
+            <span class="bc-title green">✅ Recovered Components:</span>
+            <ul id="go-completed-list" class="bc-list"></ul>
+          </div>
+          <div class="breakdown-col">
+            <span class="bc-title red">⚠️ Missing Components:</span>
+            <ul id="go-missing-list" class="bc-list"></ul>
+          </div>
+        </div>
+
+        <div class="pedagogy-tip-box">
+          💡 <b>Teacher's Tip:</b> In academic TOEFL tasks, structure arguments logically, support hypotheses with empirical data, and utilize precise cohesive discourse markers.
+        </div>
+      </div>
+
+      <div class="modal-actions">
+        <button id="btn-restart-game" class="btn btn-danger btn-lg">🔄 START AGAIN</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Mission Victory Modal with SpeaX Certificate -->
+  <div id="victory-modal" class="modal-backdrop hidden">
+    <div class="modal-card victory-window">
+      <!-- Success Header -->
+      <div class="victory-header">
+        <div class="victory-icon">🚀</div>
+        <h2 class="victory-title">MISSION ACCOMPLISHED!</h2>
+        <h3 class="victory-subtitle">ARES-V HAS SAFELY ESCAPED MARS & IS EN ROUTE TO EARTH!</h3>
+        <p class="victory-desc">Congratulations! You collected all 6 rocket components and mastered advanced academic English in accordance with TOEFL iBT® C1 standards!</p>
+      </div>
+
+      <!-- Student Name Input Section -->
+      <div class="cert-input-section" id="cert-input-section">
+        <label for="student-name-input" class="cert-input-label">
+          🎓 <b>Enter Student's Name for the Official SpeaX Certificate:</b>
+        </label>
+        <div class="cert-input-row">
+          <input type="text" id="student-name-input" class="cert-text-input" placeholder="Type student's name (e.g. Alex Smith)..." maxlength="36" />
+          <button id="btn-generate-cert" class="btn btn-primary btn-cert-generate">
+            ✨ Issue Certificate
+          </button>
+        </div>
+      </div>
+
+      <!-- The SpeaX Printable Certificate Frame -->
+      <div class="speax-cert-wrapper">
+        <div id="speax-certificate" class="speax-cert-frame">
+          <div class="cert-outer-border">
+            <div class="cert-inner-border">
+              <!-- Corner Ornaments -->
+              <div class="corner-ornament top-left">◆</div>
+              <div class="corner-ornament top-right">◆</div>
+              <div class="corner-ornament bottom-left">◆</div>
+              <div class="corner-ornament bottom-right">◆</div>
+
+              <!-- Certificate Header -->
+              <div class="cert-brand-header">
+                <div class="speax-logo-wrap">
+                  <span class="speax-logo-spark">★</span>
+                  <span class="speax-logo-text">SpeaX</span>
+                  <span class="speax-logo-sub">TOEFL & ACADEMIC ENGLISH ACADEMY</span>
+                </div>
+                <div class="cert-mission-badge">TOEFL® ENGLISH PROFICIENCY CERTIFICATE</div>
+              </div>
+
+              <div class="cert-title-block">
+                <h1 class="cert-main-title">CERTIFICATE OF ACHIEVEMENT</h1>
+                <div class="cert-pres-line">OFFICIALLY AWARDED TO:</div>
+              </div>
+
+              <!-- Recipient Name -->
+              <div class="cert-student-box">
+                <div id="cert-student-display" class="cert-student-name">Alex Smith</div>
+                <div class="cert-name-underline"></div>
+              </div>
+
+              <!-- Commendation Text -->
+              <p class="cert-citation-text">
+                For demonstrating exceptional academic English language proficiency, successfully synthesizing scientific telemetry across all Ares-V Mars Base subsystems, and mastering advanced TOEFL iBT® academic reading, syntax inversions, lecture pragmatics, structured oral discourse, and academic discussion writing in accordance with CEFR B2/C1 standards.
+              </p>
+
+              <!-- Stats & Badges Grid -->
+              <div class="cert-stats-grid">
+                <div class="cert-stat-badge">
+                  <span class="cs-icon">🎓</span>
+                  <span class="cs-label">TOEFL LEVEL</span>
+                  <span class="cs-val">Grade: 29 / 30</span>
+                </div>
+                <div class="cert-stat-badge">
+                  <span class="cs-icon">⏱️</span>
+                  <span class="cs-label">OXYGEN EFFICIENCY</span>
+                  <span class="cs-val" id="cert-time-left">38:42</span>
+                </div>
+                <div class="cert-stat-badge">
+                  <span class="cs-icon">🛰️</span>
+                  <span class="cs-label">STATIONS VERIFIED</span>
+                  <span class="cs-val">6 / 6 (100%)</span>
+                </div>
+                <div class="cert-stat-badge">
+                  <span class="cs-icon">🔤</span>
+                  <span class="cs-label">SPEAX LETTERS</span>
+                  <span class="cs-val" id="cert-eggs-found">5 / 5</span>
+                </div>
+              </div>
+
+              <!-- Signatures & Golden Seal -->
+              <div class="cert-footer-row">
+                <div class="cert-sig-box">
+                  <div class="cert-sig-line">SpeaX Examination Board</div>
+                  <div class="cert-sig-title">Academic English Evaluation</div>
+                </div>
+
+                <div class="cert-gold-seal">
+                  <div class="seal-inner">
+                    <span class="seal-star">★</span>
+                    <span class="seal-text">TOEFL</span>
+                    <span class="seal-mars">SPEAX 2026</span>
+                    <span class="seal-star">★</span>
+                  </div>
+                </div>
+
+                <div class="cert-sig-box">
+                  <div class="cert-sig-line">Dmitry Kulikov</div>
+                  <div class="cert-sig-title">Certified English Teacher & Instructor</div>
+                </div>
+              </div>
+
+              <!-- Date & Verification Code -->
+              <div class="cert-meta-row">
+                <span id="cert-issue-date">Date: November 22, 2026</span>
+                <span id="cert-serial-code">Certificate ID: SPX-MARS-84920</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Action Buttons -->
+      <div class="modal-actions cert-actions-bar">
+        <button id="btn-print-cert" class="btn btn-secondary btn-lg">
+          🖨️ Print / Save Certificate (PDF)
+        </button>
+        <button id="btn-play-again" class="btn btn-primary btn-lg">
+          🔄 Play Again
+        </button>
+      </div>
+    </div>
+  </div>
+
+</body>
+</html>
